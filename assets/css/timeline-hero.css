@@ -306,6 +306,7 @@
     letter-spacing: 0;
 }
 
+
 /* Responsive */
 @media (max-width: 767px) {
   .th-content-wrap { padding-bottom: 148px; }

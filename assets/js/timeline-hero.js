@@ -41,30 +41,74 @@
     gsap.set( $items.filter('.is-active'), { opacity: 1, scale: 1 } );
 
     // ── Progress bar ──────────────────────────────────────────
-    function animateProgress ( index, duration_ms, instant ) {
+    // Riempie la barra di uno step (usata al load e durante la pausa)
+    function fillSegment ( index, duration_ms, ease ) {
       if ( progressTw ) { progressTw.kill(); progressTw = null; }
 
       $segments.removeClass('is-past');
-      $segments.find('.th-track-segment__fill').each(function () {
-        gsap.set( this, { width: '0%' } );
-      });
-
-      $segments.each(function (i) {
-        if ( i < index ) $(this).addClass('is-past');
+      $segments.find('.th-track-segment__fill').each(function (i) {
+        gsap.set( this, {
+          width: '100%',
+          scaleX: i < index ? 1 : 0,
+          transformOrigin: 'left center'
+        });
       });
 
       const fill = $segments.eq(index).find('.th-track-segment__fill')[0];
       if ( !fill ) return;
 
+      gsap.set( fill, { width: '100%', scaleX: 0, transformOrigin: 'left center' } );
+
       progressTw = gsap.to( fill, {
-        width:    '100%',
-        duration: instant ? 0.4 : duration_ms / 1000,
-        ease:     instant ? 'power2.out' : 'none',
+        scaleX:   1,
+        duration: duration_ms / 1000,
+        ease:     ease || 'none',
       });
+    }
+
+    // Durante la transizione: svuota A e riempie B in parallelo
+    function transitionSegments ( fromIndex, toIndex, duration_ms ) {
+      if ( progressTw ) { progressTw.kill(); progressTw = null; }
+
+      // Resetta tutti
+      $segments.removeClass('is-past');
+      $segments.find('.th-track-segment__fill').each(function (i) {
+        gsap.set( this, { width: i < toIndex ? '100%' : '0%' } );
+      });
+
+      
+
+      // A si svuota
+      const fillOut = $segments.eq(fromIndex).find('.th-track-segment__fill')[0];
+      // B si riempie
+      const fillIn  = $segments.eq(toIndex).find('.th-track-segment__fill')[0];
+
+      if ( !fillOut || !fillIn ) return;
+
+      const tl = gsap.timeline({
+        onComplete () { progressTw = null; }
+      });
+
+      gsap.set( fillOut, { transformOrigin: 'right center' } );
+      tl.to( fillOut, {
+        scaleX:   0,
+        duration: duration_ms / 1000,
+        ease:     'sine.inOut',
+      }, 0 );
+
+      gsap.set( fillIn, { scaleX: 0, transformOrigin: 'left center', width: '100%' } );
+      tl.to( fillIn, {
+        scaleX:   1,
+        duration: duration_ms / 1000,
+        ease:     'sine.inOut',
+      }, 0 );
+
+      progressTw = tl;
     }
 
     // ── updateUI ──────────────────────────────────────────────
     function updateUI () {
+      animateThumb( current );
       $slider.val(current).attr('aria-valuenow', current);
       $stepBtns.removeClass('is-active').attr('tabindex', '-1');
       $stepBtns.eq(current).addClass('is-active').attr('tabindex', '0');
@@ -193,15 +237,15 @@
     function scheduleNext () {
       if ( !doAuto || total <= 1 ) return;
 
-      // Aspetta la pausa a barra già piena, poi avanza
+      // Pausa — barra attiva ferma al 100%
       autoTimer = setTimeout( function () {
         const next = ( current + 1 ) % total;
 
-        // Avvia la progress DURANTE la transizione verso il prossimo step
-        animateProgress( next, duration * 1000, false );
+        // Durante la transizione: A si svuota, B si riempie
+        transitionSegments( current, next, duration * 1000 );
 
         goTo( next, function () {
-          // Transizione finita → pausa a barra piena, poi riparte
+          // Transizione finita — barra di B già piena, aspetta la pausa
           scheduleNext();
         });
 
@@ -211,10 +255,11 @@
     function startAuto () {
       if ( !doAuto || total <= 1 ) return;
       stopAuto();
-      // Nessuna animateProgress qui — parte dentro scheduleNext al momento giusto
+      // Al primo avvio riempie subito la barra dello step corrente
+      fillSegment( current, 300, 'power2.out' );
       autoTimer = setTimeout( function () {
         const next = ( current + 1 ) % total;
-        animateProgress( next, duration * 1000, false );
+        transitionSegments( current, next, duration * 1000 );
         goTo( next, function () {
           scheduleNext();
         });
@@ -225,10 +270,33 @@
     function manualGoTo (idx) {
       if ( idx === current ) return;
       stopAuto();
+      // Durante il click: A si svuota, B si riempie velocemente
+      transitionSegments( current, idx, duration * 1000 );
       goTo( idx, function () {
-        animateProgress( current, autoDelay, true );  // dopo goTo, current è aggiornato
         if ( doAuto ) scheduleNext();
       });
+    }
+    // ── Animazione "cursore" ───────────────────────────────────
+    function animateThumb ( toIndex ) {
+      const pct = total > 1 ? ( toIndex / ( total - 1 ) ) * 100 : 100;
+      gsap.to( $slider[0], {
+        value: toIndex,   // non funziona direttamente su input range con GSAP
+        duration: 0,
+      });
+
+      // Anima la posizione con un proxy numerico
+      gsap.to( { val: parseFloat( $slider.val() ) }, {
+        val:      toIndex,
+        duration: duration * 0.6,
+        ease:     'power2.inOut',
+        onUpdate: function () {
+          $slider.val( this.targets()[0].val );
+        }
+      });
+
+      // Fade out → sposta → fade in del thumb via classe CSS
+      $slider.addClass('th-slider--moving');
+      setTimeout( () => $slider.removeClass('th-slider--moving'), duration * 600 );
     }
 
     // ── Events ───────────────────────────────────────────────
@@ -273,7 +341,8 @@
     // ── Init ──────────────────────────────────────────────────
     handleKenBurns( $items.eq(0), true );
     updateUI();
-    if ( doAuto ) scheduleNext();
+    if ( doAuto ) startAuto();
+    else fillSegment( 0, 300, 'power2.out' ); 
   }
 
   // ── Boot ──────────────────────────────────────────────────
