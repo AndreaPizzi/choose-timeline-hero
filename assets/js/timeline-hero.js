@@ -1,5 +1,5 @@
 /**
- * Timeline Hero – JS  v2.4
+ * Timeline Hero – JS  v2.5
  * Deps: jQuery, GSAP 3
  */
 
@@ -20,11 +20,15 @@
     const transition = config.transition || 'crossfade';
     const kenBurns   = config.kenBurns === true;
 
-    const $slider   = $root.find(SEL_SLIDER);
-    const $items    = $root.find(SEL_MEDIA_ITEM);
-    const $labels   = $root.find(SEL_LABEL);
-    const $stepBtns = $root.find(SEL_STEP_BTN);
-    const $segments = $root.find('.th-track-segment');
+    const $slider      = $root.find(SEL_SLIDER);
+    const $items       = $root.find(SEL_MEDIA_ITEM);
+    const $labels      = $root.find(SEL_LABEL);
+    const $stepBtns    = $root.find(SEL_STEP_BTN);
+    const $segments    = $root.find('.th-track-segment');
+    const $stepsScroll = $root.find('.th-steps-scroll');
+    const $stepsRow    = $root.find('.th-steps-row');
+    const $arrowPrev   = $root.find('.th-steps-arrow--prev');
+    const $arrowNext   = $root.find('.th-steps-arrow--next');
 
     const autoDelay = 4500;
     const total     = $items.length;
@@ -33,6 +37,7 @@
     let animating  = false;
     let autoTimer  = null;
     let progressTw = null;
+    let viewOffset = 0;
 
     if ( total === 0 ) return;
 
@@ -41,16 +46,15 @@
     gsap.set( $items.filter('.is-active'), { opacity: 1, scale: 1 } );
 
     // ── Progress bar ──────────────────────────────────────────
-    // Riempie la barra di uno step (usata al load e durante la pausa)
     function fillSegment ( index, duration_ms, ease ) {
       if ( progressTw ) { progressTw.kill(); progressTw = null; }
 
       $segments.removeClass('is-past');
       $segments.find('.th-track-segment__fill').each(function (i) {
         gsap.set( this, {
-          width: '100%',
-          scaleX: i < index ? 1 : 0,
-          transformOrigin: 'left center'
+          width:           '100%',
+          scaleX:          i < index ? 1 : 0,
+          transformOrigin: 'left center',
         });
       });
 
@@ -58,7 +62,6 @@
       if ( !fill ) return;
 
       gsap.set( fill, { width: '100%', scaleX: 0, transformOrigin: 'left center' } );
-
       progressTw = gsap.to( fill, {
         scaleX:   1,
         duration: duration_ms / 1000,
@@ -66,23 +69,16 @@
       });
     }
 
-    // Durante la transizione: svuota A e riempie B in parallelo
     function transitionSegments ( fromIndex, toIndex, duration_ms ) {
       if ( progressTw ) { progressTw.kill(); progressTw = null; }
 
-      // Resetta tutti
       $segments.removeClass('is-past');
       $segments.find('.th-track-segment__fill').each(function (i) {
         gsap.set( this, { width: i < toIndex ? '100%' : '0%' } );
       });
 
-      
-
-      // A si svuota
       const fillOut = $segments.eq(fromIndex).find('.th-track-segment__fill')[0];
-      // B si riempie
       const fillIn  = $segments.eq(toIndex).find('.th-track-segment__fill')[0];
-
       if ( !fillOut || !fillIn ) return;
 
       const tl = gsap.timeline({
@@ -106,11 +102,115 @@
       progressTw = tl;
     }
 
+    // ── Steps scroll / frecce ─────────────────────────────────
+    function getVisibleSlots () {
+      const w = window.innerWidth;
+      if ( w <= 480 ) return 2;
+      if ( w <= 768 ) return 4;
+      return 6;
+    }
+
+    function updateArrows () {
+      const slots    = getVisibleSlots();
+      const overflow = total > slots;
+
+      $stepsScroll.toggleClass('has-overflow', overflow);
+      $arrowPrev.toggleClass('is-hidden', !overflow);
+      $arrowNext.toggleClass('is-hidden', !overflow);
+
+      const pct = 100 / Math.min( slots, total );
+      $stepBtns.css('width', pct + '%');
+
+      // Track: ogni segmento ha stessa larghezza proporzionale dei btn
+      // Il track totale è largo quanto la row degli step
+      if ( overflow ) {
+        const trackTotalPct = ( total / slots ) * 100;
+        $root.find('.th-track').css('width', trackTotalPct + '%');
+        $segments.css('flex', 'none').css('width', ( 100 / total ) + '%');
+      } else {
+        $root.find('.th-track').css('width', '100%');
+        $segments.css('flex', '1').css('width', '' );
+      }
+    }
+
+    function scrollToActive () {
+      if ( !$stepsScroll[0] ) return;
+      const slots = getVisibleSlots();
+      if ( total <= slots ) {
+        viewOffset = 0;
+        gsap.set( [$stepsRow[0], $root.find('.th-track')[0]], { x: 0 } );
+        return;
+      }
+
+      const scrollW  = $stepsScroll[0].offsetWidth;
+      const btnW     = $stepBtns.eq(0)[0] ? $stepBtns.eq(0)[0].offsetWidth : scrollW / slots;
+      const btnLeft  = $stepBtns.eq(current)[0].offsetLeft;
+
+      // Se il btn attivo è fuori dalla viewport visibile, centra su di lui
+      const visStart = viewOffset;
+      const visEnd   = viewOffset + scrollW;
+      if ( btnLeft < visStart || btnLeft + btnW > visEnd ) {
+        const rowW     = btnW * total;
+        const maxShift = Math.max( 0, rowW - scrollW );
+        let target     = btnLeft - ( scrollW / 2 ) + ( btnW / 2 );
+        target = Math.max( 0, Math.min( target, maxShift ) );
+        scrollToOffset( target );
+      }
+    }
+
+    // Variabile per tenere traccia dell'offset visivo indipendente dalla slide attiva
+    
+
+    function scrollToOffset ( offset ) {
+      const slots    = getVisibleSlots();
+      const scrollW  = $stepsScroll[0].offsetWidth;
+      const btnW     = $stepBtns.eq(0)[0] ? $stepBtns.eq(0)[0].offsetWidth : scrollW / slots;
+      const rowW     = btnW * total;
+      const maxShift = Math.max( 0, rowW - scrollW );
+
+      viewOffset = Math.max( 0, Math.min( offset, maxShift ) );
+
+      gsap.to( $stepsRow[0], {
+        x:        -viewOffset,
+        duration: 0.45,
+        ease:     'power2.inOut',
+      });
+
+      const trackW      = $root.find('.th-track')[0].offsetWidth;
+      const maxTrack    = Math.max( 0, trackW - scrollW );
+      const trackTarget = maxShift > 0 ? ( viewOffset / maxShift ) * maxTrack : 0;
+
+      gsap.to( $root.find('.th-track')[0], {
+        x:        -trackTarget,
+        duration: 0.45,
+        ease:     'power2.inOut',
+      });
+    }
+
+    $arrowPrev.on('click', function () {
+      const slots   = getVisibleSlots();
+      const scrollW = $stepsScroll[0].offsetWidth;
+      const btnW    = $stepBtns.eq(0)[0] ? $stepBtns.eq(0)[0].offsetWidth : scrollW / slots;
+      scrollToOffset( viewOffset - btnW * slots );
+    });
+
+    $arrowNext.on('click', function () {
+      const slots   = getVisibleSlots();
+      const scrollW = $stepsScroll[0].offsetWidth;
+      const btnW    = $stepBtns.eq(0)[0] ? $stepBtns.eq(0)[0].offsetWidth : scrollW / slots;
+      scrollToOffset( viewOffset + btnW * slots );
+    });
+
+    $( window ).on( 'resize.th-' + $root.attr('id'), function () {
+      updateArrows();
+      scrollToActive();
+    });
+
     // ── updateUI ──────────────────────────────────────────────
     function updateUI ( prevIndex ) {
       $slider.val(current).attr('aria-valuenow', current);
 
-      // Reset completo di tutti i btn non attivi
+      // Reset tutti i btn non coinvolti
       $stepBtns.each(function (i) {
         if ( i !== current && i !== prevIndex ) {
           $(this).removeClass('is-active').attr('tabindex', '-1');
@@ -151,13 +251,14 @@
         duration: duration * 0.6,
         ease:     'sine.inOut',
       });
+
+      scrollToActive();
     }
 
     // ── goTo ──────────────────────────────────────────────────
     function goTo (index, onDone) {
       if ( index === current ) { if (onDone) onDone(); return; }
 
-      // Interrompi animazione in corso
       if ( animating ) {
         gsap.killTweensOf( $items.toArray() );
         gsap.killTweensOf( $labels.find('.th-title, .th-subtitle').toArray() );
@@ -173,7 +274,7 @@
       animating = true;
 
       const prevIndex = current;
-      current = index;            // aggiorna current subito
+      current = index;
 
       updateUI( prevIndex );
 
@@ -193,7 +294,7 @@
           handleVideo( $inItem, true );
           handleKenBurns( $outItem, false );
           handleKenBurns( $inItem, true );
-          if ( onDone ) onDone();   // ← segnala completamento
+          if ( onDone ) onDone();
         }
       });
 
@@ -208,7 +309,7 @@
         tl.to( $inItem[0],  { opacity: 1, scale: 1,    duration,                 ease: 'power3.out' }, duration * .2 );
       }
 
-      // ── Testo uscente ────────────────────────────────────
+      // ── Testo uscente ─────────────────────────────────────
       const $outTitle    = $outLabel.find('.th-title');
       const $outSubtitle = $outLabel.find('.th-subtitle');
       const outFirst     = dir === 1 ? $outTitle[0] : $outSubtitle[0];
@@ -223,7 +324,7 @@
       .to( outFirst,  { autoAlpha: 0, y: dir * -8, skewY: dir * -1.5, filter: 'blur(2px)', duration: duration * .28, ease: 'sine.inOut' })
       .to( outSecond, { autoAlpha: 0, y: dir * -8, skewY: dir * -1.5, filter: 'blur(2px)', duration: duration * .30, ease: 'sine.inOut' }, `-=${duration * .12}` );
 
-      // ── Testo entrante ───────────────────────────────────
+      // ── Testo entrante ────────────────────────────────────
       const $inTitle    = $inLabel.find('.th-title');
       const $inSubtitle = $inLabel.find('.th-subtitle');
       const inFirst     = dir === 1 ? $inTitle[0] : $inSubtitle[0];
@@ -276,26 +377,18 @@
 
     function scheduleNext () {
       if ( !doAuto || total <= 1 ) return;
-
-      // Pausa — barra attiva ferma al 100%
       autoTimer = setTimeout( function () {
         const next = ( current + 1 ) % total;
-
-        // Durante la transizione: A si svuota, B si riempie
         transitionSegments( current, next, duration * 1000 );
-
         goTo( next, function () {
-          // Transizione finita — barra di B già piena, aspetta la pausa
           scheduleNext();
         });
-
       }, autoDelay );
     }
 
     function startAuto () {
       if ( !doAuto || total <= 1 ) return;
       stopAuto();
-      // Al primo avvio riempie subito la barra dello step corrente
       fillSegment( current, 300, 'power2.out' );
       autoTimer = setTimeout( function () {
         const next = ( current + 1 ) % total;
@@ -310,33 +403,10 @@
     function manualGoTo (idx) {
       if ( idx === current ) return;
       stopAuto();
-      // Durante il click: A si svuota, B si riempie velocemente
       transitionSegments( current, idx, duration * 1000 );
       goTo( idx, function () {
         if ( doAuto ) scheduleNext();
       });
-    }
-    // ── Animazione "cursore" ───────────────────────────────────
-    function animateThumb ( toIndex ) {
-      const pct = total > 1 ? ( toIndex / ( total - 1 ) ) * 100 : 100;
-      gsap.to( $slider[0], {
-        value: toIndex,   // non funziona direttamente su input range con GSAP
-        duration: 0,
-      });
-
-      // Anima la posizione con un proxy numerico
-      gsap.to( { val: parseFloat( $slider.val() ) }, {
-        val:      toIndex,
-        duration: duration * 0.6,
-        ease:     'power2.inOut',
-        onUpdate: function () {
-          $slider.val( this.targets()[0].val );
-        }
-      });
-
-      // Fade out → sposta → fade in del thumb via classe CSS
-      $slider.addClass('th-slider--moving');
-      setTimeout( () => $slider.removeClass('th-slider--moving'), duration * 600 );
     }
 
     // ── Events ───────────────────────────────────────────────
@@ -382,17 +452,20 @@
     handleKenBurns( $items.eq(0), true );
     $slider.val(0).attr('aria-valuenow', 0);
 
-    // Reset completo di tutti i btn — rimuove qualsiasi stile inline residuo
-    $stepBtns.each(function (i) {
+    // Reset completo tutti i btn
+    $stepBtns.each(function () {
       $(this).removeClass('is-active').attr('tabindex', '-1');
-      gsap.set( $(this).find('.th-step-dot__fill')[0],   { scaleX: 0, transformOrigin: 'left center', clearProps: 'clip-path' } );
-      gsap.set( $(this).find('.th-step-label__fill')[0], { clipPath: 'inset(0 100% 0 0)', clearProps: 'transform' } );
+      gsap.set( $(this).find('.th-step-dot__fill')[0],   { scaleX: 0, transformOrigin: 'left center' } );
+      gsap.set( $(this).find('.th-step-label__fill')[0], { clipPath: 'inset(0 100% 0 0)' } );
     });
 
-    // Imposta solo il primo come attivo
+    // Primo btn attivo
     $stepBtns.eq(0).addClass('is-active').attr('tabindex', '0');
     gsap.set( $stepBtns.eq(0).find('.th-step-dot__fill')[0],   { scaleX: 1, transformOrigin: 'left center' } );
     gsap.set( $stepBtns.eq(0).find('.th-step-label__fill')[0], { clipPath: 'inset(0 0% 0 0)' } );
+
+    updateArrows();
+    scrollToActive();
 
     if ( doAuto ) startAuto();
     else fillSegment( 0, 300, 'power2.out' );

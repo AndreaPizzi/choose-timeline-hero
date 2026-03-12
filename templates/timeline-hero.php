@@ -33,7 +33,7 @@
                 $src = ! empty( $step['step_video_url'] )
                     ? $step['step_video_url']
                     : ( $step['step_video_file']['url'] ?? '' );
-                $poster_url   = ! empty( $step['step_video_poster'] ) ? $step['step_video_poster']['url'] : '';
+                $poster_url = ! empty( $step['step_video_poster'] ) ? $step['step_video_poster']['url'] : '';
             ?>
                 <?php if ( $src ) : ?>
                 <video
@@ -77,10 +77,10 @@
                 aria-hidden="<?php echo $index === 0 ? 'false' : 'true'; ?>"
             >
                 <?php if ( ! empty( $step['step_title'] ) ) : ?>
-                <h2 class="th-title"><?php echo wp_kses( $step['step_title'], [ 'strong' => [],'small' => [] ] ); ?></h2>
+                <h2 class="th-title"><?php echo wp_kses( $step['step_title'], [ 'strong' => [], 'small' => [] ] ); ?></h2>
                 <?php endif; ?>
                 <?php if ( ! empty( $step['step_subtitle'] ) ) : ?>
-                <p class="th-subtitle"><?php echo wp_kses( $step['step_subtitle'], [ 'strong' => [],'small' => [] ] ); ?></p>
+                <p class="th-subtitle"><?php echo wp_kses( $step['step_subtitle'], [ 'strong' => [], 'small' => [] ] ); ?></p>
                 <?php endif; ?>
             </div>
             <?php endforeach; ?>
@@ -90,18 +90,39 @@
     <!-- ── Controller ────────────────────────────────────────────── -->
     <div class="th-controller" role="group" aria-label="Navigazione timeline">
 
-        <div class="th-steps-row" aria-hidden="true">
-            <?php foreach ( $steps as $index => $step ) : ?>
-            <button class="th-step-btn <?php echo $index === 0 ? 'is-active' : ''; ?>" ...>
-                <span class="th-step-dot">
-                    <span class="th-step-dot__fill"></span>
-                </span>
-                <span class="th-step-label">
-                    <span class="th-step-label__fill"><?php echo wp_kses( $step['step_title'], [ 'strong' => [],'small' => [] ] ); ?></span>
-                    <span class="th-step-label__base"><?php echo wp_kses( $step['step_title'], [ 'strong' => [],'small' => [] ] ); ?></span>
-                </span>
-            </button>
-            <?php endforeach; ?>
+        <div class="th-steps-nav">
+
+            <button
+                class="th-steps-arrow th-steps-arrow--prev is-hidden"
+                aria-label="<?php esc_attr_e( 'Precedente', 'timeline-hero' ); ?>"
+            >&#8249;</button>
+
+            <div class="th-steps-scroll">
+                <div class="th-steps-row" aria-hidden="true">
+                    <?php foreach ( $steps as $index => $step ) : ?>
+                    <button
+                        class="th-step-btn<?php echo $index === 0 ? ' is-active' : ''; ?>"
+                        data-index="<?php echo esc_attr( $index ); ?>"
+                        tabindex="<?php echo $index === 0 ? '0' : '-1'; ?>"
+                        aria-label="<?php echo esc_attr( wp_strip_all_tags( $step['step_title'] ?? '' ) ); ?>"
+                    >
+                        <span class="th-step-dot">
+                            <span class="th-step-dot__fill"></span>
+                        </span>
+                        <span class="th-step-label">
+                            <span class="th-step-label__fill"><?php echo wp_kses( $step['step_title'], [ 'strong' => [], 'small' => [] ] ); ?></span>
+                            <span class="th-step-label__base"><?php echo wp_kses( $step['step_title'], [ 'strong' => [], 'small' => [] ] ); ?></span>
+                        </span>
+                    </button>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <button
+                class="th-steps-arrow th-steps-arrow--next is-hidden"
+                aria-label="<?php esc_attr_e( 'Successivo', 'timeline-hero' ); ?>"
+            >&#8250;</button>
+
         </div>
 
         <div class="th-slider-wrap">
