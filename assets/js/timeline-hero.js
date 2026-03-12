@@ -107,11 +107,50 @@
     }
 
     // ── updateUI ──────────────────────────────────────────────
-    function updateUI () {
-      animateThumb( current );
+    function updateUI ( prevIndex ) {
       $slider.val(current).attr('aria-valuenow', current);
-      $stepBtns.removeClass('is-active').attr('tabindex', '-1');
-      $stepBtns.eq(current).addClass('is-active').attr('tabindex', '0');
+
+      // Reset completo di tutti i btn non attivi
+      $stepBtns.each(function (i) {
+        if ( i !== current && i !== prevIndex ) {
+          $(this).removeClass('is-active').attr('tabindex', '-1');
+          gsap.set( $(this).find('.th-step-dot__fill')[0],   { scaleX: 0, transformOrigin: 'left center' } );
+          gsap.set( $(this).find('.th-step-label__fill')[0], { clipPath: 'inset(0 100% 0 0)' } );
+        }
+      });
+
+      // Prev — si svuota
+      if ( prevIndex !== undefined ) {
+        const $outBtn = $stepBtns.eq(prevIndex);
+        $outBtn.removeClass('is-active').attr('tabindex', '-1');
+        gsap.set( $outBtn.find('.th-step-dot__fill')[0], { transformOrigin: 'right center' } );
+        gsap.to( $outBtn.find('.th-step-dot__fill')[0], {
+          scaleX:   0,
+          duration: duration * 0.5,
+          ease:     'sine.inOut',
+        });
+        gsap.to( $outBtn.find('.th-step-label__fill')[0], {
+          clipPath: 'inset(0 0% 0 100%)',
+          duration: duration * 0.5,
+          ease:     'sine.inOut',
+        });
+      }
+
+      // Next — si riempie
+      const $inBtn = $stepBtns.eq(current);
+      $inBtn.addClass('is-active').attr('tabindex', '0');
+      gsap.set( $inBtn.find('.th-step-dot__fill')[0], { scaleX: 0, transformOrigin: 'left center' } );
+      gsap.to( $inBtn.find('.th-step-dot__fill')[0], {
+        scaleX:   1,
+        duration: duration * 0.6,
+        ease:     'sine.inOut',
+      });
+      gsap.set( $inBtn.find('.th-step-label__fill')[0], { clipPath: 'inset(0 100% 0 0)' } );
+      gsap.to( $inBtn.find('.th-step-label__fill')[0], {
+        clipPath: 'inset(0 0% 0 0)',
+        duration: duration * 0.6,
+        ease:     'sine.inOut',
+      });
     }
 
     // ── goTo ──────────────────────────────────────────────────
@@ -136,6 +175,8 @@
       const prevIndex = current;
       current = index;            // aggiorna current subito
 
+      updateUI( prevIndex );
+
       const $outItem  = $items.eq(prevIndex);
       const $inItem   = $items.eq(index);
       const $outLabel = $labels.eq(prevIndex);
@@ -152,7 +193,6 @@
           handleVideo( $inItem, true );
           handleKenBurns( $outItem, false );
           handleKenBurns( $inItem, true );
-          updateUI();               // ← aggiorna slider/dot solo a transizione finita
           if ( onDone ) onDone();   // ← segnala completamento
         }
       });
@@ -340,9 +380,22 @@
 
     // ── Init ──────────────────────────────────────────────────
     handleKenBurns( $items.eq(0), true );
-    updateUI();
+    $slider.val(0).attr('aria-valuenow', 0);
+
+    // Reset completo di tutti i btn — rimuove qualsiasi stile inline residuo
+    $stepBtns.each(function (i) {
+      $(this).removeClass('is-active').attr('tabindex', '-1');
+      gsap.set( $(this).find('.th-step-dot__fill')[0],   { scaleX: 0, transformOrigin: 'left center', clearProps: 'clip-path' } );
+      gsap.set( $(this).find('.th-step-label__fill')[0], { clipPath: 'inset(0 100% 0 0)', clearProps: 'transform' } );
+    });
+
+    // Imposta solo il primo come attivo
+    $stepBtns.eq(0).addClass('is-active').attr('tabindex', '0');
+    gsap.set( $stepBtns.eq(0).find('.th-step-dot__fill')[0],   { scaleX: 1, transformOrigin: 'left center' } );
+    gsap.set( $stepBtns.eq(0).find('.th-step-label__fill')[0], { clipPath: 'inset(0 0% 0 0)' } );
+
     if ( doAuto ) startAuto();
-    else fillSegment( 0, 300, 'power2.out' ); 
+    else fillSegment( 0, 300, 'power2.out' );
   }
 
   // ── Boot ──────────────────────────────────────────────────

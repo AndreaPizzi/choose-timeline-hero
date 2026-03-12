@@ -92,14 +92,14 @@
 
         <div class="th-steps-row" aria-hidden="true">
             <?php foreach ( $steps as $index => $step ) : ?>
-            <button
-                class="th-step-btn<?php echo $index === 0 ? ' is-active' : ''; ?>"
-                data-index="<?php echo esc_attr( $index ); ?>"
-                aria-label="Step <?php echo esc_attr( $index + 1 ); ?>: <?php echo esc_attr( $step['step_title'] ?? '' ); ?>"
-                tabindex="-1"
-            >
-                <span class="th-step-dot"></span>
-                <span class="th-step-label"><?php echo wp_kses( $step['step_title'], [  ] ); ?></span>
+            <button class="th-step-btn <?php echo $index === 0 ? 'is-active' : ''; ?>" ...>
+                <span class="th-step-dot">
+                    <span class="th-step-dot__fill"></span>
+                </span>
+                <span class="th-step-label">
+                    <span class="th-step-label__fill"><?php echo wp_kses( $step['step_title'], [ 'strong' => [],'small' => [] ] ); ?></span>
+                    <span class="th-step-label__base"><?php echo wp_kses( $step['step_title'], [ 'strong' => [],'small' => [] ] ); ?></span>
+                </span>
             </button>
             <?php endforeach; ?>
         </div>

@@ -1,8 +1,10 @@
 /* ============================================================
-   Timeline Hero – Frontend CSS  v2.0
+   Timeline Hero – Frontend CSS  v2.1
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400&family=Playfair+Display:wght@400;700&display=swap');
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Raleway:ital,wght@0,100..900;1,100..900&display=swap');
+
 
 :root {
   --th-accent:      #e8c97a;
@@ -10,13 +12,14 @@
   --th-text:        #f5f0e8;
   --th-ctrl-bg:     rgba(8, 8, 8, .72);
   --th-ctrl-border: rgba(255, 255, 255, .08);
-  --th-font-title:  'Playfair Display', Georgia, serif;
+  /*--th-font-title:  'Playfair Display', Georgia, serif;*/
+  --th-font-title:  'Raleway,sans-serif';
   --th-font-ui:     'DM Mono', 'Courier New', monospace;
   --th-strong-color:   #ffffff;
-  --th-strong-family:  'DM Mono', monospace;   /* font diverso per <strong> */
+  --th-strong-family:  'DM Mono', monospace;
 }
 
-/* ── Contenitore ────────────────────────────────────────────── */
+/* ── Contenitore ─────────────────────────────────────────── */
 .timeline-hero {
   position: relative;
   width: 100%;
@@ -28,11 +31,10 @@
   container-type: inline-size;
 }
 
-/* Gutenberg align full/wide */
 .timeline-hero.alignfull  { width: 100vw; margin-left: calc(50% - 50vw); }
 .timeline-hero.alignwide  { width: 100%; }
 
-/* ── Media Stack ─────────────────────────────────────────────── */
+/* ── Media Stack ─────────────────────────────────────────── */
 .th-media-stack {
   position: absolute;
   inset: 0;
@@ -66,44 +68,45 @@
   pointer-events: none;
 }
 
-/* ── Testi ───────────────────────────────────────────────────── */
+/* ── Testi ───────────────────────────────────────────────── */
 .th-content-wrap {
   position: relative;
   z-index: 10;
   width: 100%;
   padding: 0 5% 156px;
   pointer-events: none;
+  text-align: var(--th-text-align, left);
+}
+
+.th-labels {
+  position: relative;
+  min-height: 8rem;
 }
 
 .th-label {
-    display: flex;          /* sempre flex, non più none */
-    flex-direction: column;
-    gap: .5rem;
-    position: absolute;     /* sovrapposti nello stesso spazio */
-    bottom: 0;
-    left: 0;
-    right: 0;
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    will-change: opacity, transform;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  will-change: opacity, transform;
 }
 
-.th-labels{
-  position: relative;
-  min-height: 8rem; 
-}
-
-.th-label.is-active { 
+.th-label.is-active {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
 }
 
 .th-title {
-  font-family: var(--th-font-title);
+  /*font-family: var(--th-font-title);*/
   font-size: clamp(2.4rem, 7cqi, 5.5rem);
-  font-weight: 700;
+  font-weight: 100;
   color: var(--th-text);
   line-height: 1.08;
   letter-spacing: -.02em;
@@ -121,7 +124,21 @@
   margin: 0;
 }
 
-/* ── Controller ──────────────────────────────────────────────── */
+.th-title strong {
+  color:       var(--th-strong-color, #fff);
+  font-family: var(--th-strong-family);
+  font-weight: 400;
+}
+
+.th-subtitle strong {
+  color:       var(--th-strong-color, #fff);
+  font-family: var(--th-font-title);
+  font-weight: 700;
+  font-style:  italic;
+  letter-spacing: 0;
+}
+
+/* ── Controller ──────────────────────────────────────────── */
 .th-controller {
   position: absolute;
   bottom: 0;
@@ -135,7 +152,7 @@
   border-top: 1px solid var(--th-ctrl-border);
 }
 
-/* Step buttons */
+/* ── Step buttons ────────────────────────────────────────── */
 .th-steps-row {
   display: flex;
   align-items: flex-end;
@@ -152,36 +169,67 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  /* colore fisso — non cambia mai via CSS, gestisce GSAP */
   color: rgba(255,255,255,.3);
   font-family: var(--th-font-ui);
   font-size: clamp(.58rem, 1.4cqi, .76rem);
   letter-spacing: .1em;
   text-transform: uppercase;
-  transition: color .3s;
   outline: none;
+  /* nessuna transition color — gestisce GSAP */
 }
-.th-step-btn:focus-visible { color: var(--th-accent); }
-.th-step-btn.is-active     { color: var(--th-accent); }
 
+.th-step-btn:focus-visible { outline: 1px solid var(--th-accent); }
+
+/* Dot — layer base sempre grigio fisso */
 .th-step-dot {
   display: block;
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: currentColor;
+  background: rgba(255,255,255,.3);  /* fisso, NON currentColor */
   flex-shrink: 0;
-  transition: transform .3s;
-}
-.th-step-btn.is-active .th-step-dot { transform: scale(1.7); }
-
-.th-step-label {
-  white-space: nowrap;
+  position: relative;
   overflow: hidden;
-  text-overflow: ellipsis;
+  /* nessuna transition transform — gestisce GSAP */
+}
+
+/* Dot fill — layer dorato animato da GSAP */
+.th-step-dot__fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--th-accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+/* Label — layer base sempre grigio */
+.th-step-label {
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
   max-width: 100%;
 }
 
-/* Slider */
+.th-step-label__base {
+  display: block;
+  color: rgba(255,255,255,.3);
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+/* Label fill — layer dorato animato da GSAP */
+.th-step-label__fill {
+  position: absolute;
+  inset: 0;
+  color: var(--th-accent);
+  clip-path: inset(0 100% 0 0);  /* nascosto di default */
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── Track a segmenti ────────────────────────────────────── */
 .th-slider-wrap {
   position: relative;
   height: 4px;
@@ -189,19 +237,6 @@
   align-items: center;
 }
 
-/* .th-track-fill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  background: var(--th-accent);
-  border-radius: 2px;
-  pointer-events: none;
-  width: 0%;
-  transition: width .12s linear;
-} */
-
-/* Track a segmenti */
 .th-track {
   position: absolute;
   inset: 0;
@@ -221,23 +256,20 @@
 
 .th-track-segment__fill {
   height: 100%;
-  width: 0%;
+  width: 100%;
   background: var(--th-accent);
   border-radius: 2px;
+  transform: scaleX(0);
   transform-origin: left center;
 }
 
-/* Segmenti già passati — pieni al 100% */
-.th-track-segment.is-past .th-track-segment__fill {
-  width: 100%;
-}
-
+/* ── Slider ──────────────────────────────────────────────── */
 .th-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
   height: 4px;
-  background: rgba(255,255,255,.15);
+  background: transparent;
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -257,6 +289,7 @@
   cursor: pointer;
   transition: box-shadow .25s, transform .25s;
 }
+
 .th-slider:hover::-webkit-slider-thumb,
 .th-slider:focus::-webkit-slider-thumb {
   box-shadow: 0 0 0 8px rgba(var(--th-accent-rgb), .18);
@@ -271,12 +304,13 @@
   border: 3px solid rgba(0,0,0,.55);
   cursor: pointer;
 }
+
 .th-slider::-moz-range-track {
   background: transparent;
   height: 4px;
 }
 
-/* Admin notice */
+/* ── Admin notice ────────────────────────────────────────── */
 .timeline-hero-notice {
   padding: 1rem 1.5rem;
   background: #fff3cd;
@@ -285,33 +319,12 @@
   font-size: .9rem;
 }
 
-/* ── Posizione testo ────────────────────────────────────── */
-.th-content-wrap {
-    text-align: var(--th-text-align, left);
-    align-items: var(--th-text-align, left);  /* per flexbox se serve */
-}
-
-/* ── Strong nei testi ───────────────────────────────────── */
-.th-title strong {
-    color:       var(--th-strong-color, #fff);
-    font-family: var(--th-strong-family);
-    font-weight: 400;     /* DM Mono non ha bold, usa weight diverso dal titolo */
-}
-
-.th-subtitle strong {
-    color:       var(--th-strong-color, #fff);
-    font-family: var(--th-font-title);   /* inverti: subtitle strong usa serif */
-    font-weight: 700;
-    font-style:  italic;
-    letter-spacing: 0;
-}
-
-
-/* Responsive */
+/* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 767px) {
   .th-content-wrap { padding-bottom: 148px; }
   .th-controller { padding: 14px 4% 22px; }
 }
+
 @media (max-width: 480px) {
   .th-step-btn:not(.is-active) .th-step-label { display: none; }
 }
@@ -319,4 +332,3 @@
 @media (prefers-reduced-motion: reduce) {
   .th-media-item { transition: none !important; }
 }
-
