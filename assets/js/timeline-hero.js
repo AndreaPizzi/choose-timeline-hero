@@ -424,6 +424,9 @@
         gsap.set( $(this).find('.th-step-label__fill')[0], { clipPath: 'inset(0 100% 0 0)' } );
       });
 
+      // Accende subito la barra dell'elemento cliccato
+      fillSegment( idx, 300, 'power2.out' );
+
       goTo( idx, function () {
         if ( doAuto ) {
           // Illumina solo la barra dello step cliccato
