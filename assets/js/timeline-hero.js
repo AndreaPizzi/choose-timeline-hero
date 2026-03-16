@@ -46,10 +46,26 @@
     gsap.set( $items.filter('.is-active'), { opacity: 1, scale: 1 } );
 
     // ── Progress bar ──────────────────────────────────────────
+
+    // Illumina solo la barra dell'index — non tocca le altre
     function fillSegment ( index, duration_ms, ease ) {
       if ( progressTw ) { progressTw.kill(); progressTw = null; }
 
-      $segments.removeClass('is-past');
+      const fill = $segments.eq(index).find('.th-track-segment__fill')[0];
+      if ( !fill ) return;
+
+      gsap.set( fill, { scaleX: 0, transformOrigin: 'left center', width: '100%' } );
+      progressTw = gsap.to( fill, {
+        scaleX:   1,
+        duration: duration_ms / 1000,
+        ease:     ease || 'none',
+      });
+    }
+
+    // Imposta tutte le barre passate a 1, future a 0, anima l'index
+    function fillSegmentFull ( index, duration_ms, ease ) {
+      if ( progressTw ) { progressTw.kill(); progressTw = null; }
+
       $segments.find('.th-track-segment__fill').each(function (i) {
         gsap.set( this, {
           width:           '100%',
@@ -61,7 +77,7 @@
       const fill = $segments.eq(index).find('.th-track-segment__fill')[0];
       if ( !fill ) return;
 
-      gsap.set( fill, { width: '100%', scaleX: 0, transformOrigin: 'left center' } );
+      gsap.set( fill, { scaleX: 0, transformOrigin: 'left center' } );
       progressTw = gsap.to( fill, {
         scaleX:   1,
         duration: duration_ms / 1000,
@@ -69,13 +85,9 @@
       });
     }
 
+    // Anima da fromIndex a toIndex — NON forza lo stato di fillOut
     function transitionSegments ( fromIndex, toIndex, duration_ms ) {
       if ( progressTw ) { progressTw.kill(); progressTw = null; }
-
-      $segments.removeClass('is-past');
-      $segments.find('.th-track-segment__fill').each(function (i) {
-        gsap.set( this, { width: i < toIndex ? '100%' : '0%' } );
-      });
 
       const fillOut = $segments.eq(fromIndex).find('.th-track-segment__fill')[0];
       const fillIn  = $segments.eq(toIndex).find('.th-track-segment__fill')[0];
@@ -85,6 +97,7 @@
         onComplete () { progressTw = null; }
       });
 
+      // Anima fillOut da dove si trova (non forzare scaleX: 1)
       gsap.set( fillOut, { transformOrigin: 'right center' } );
       tl.to( fillOut, {
         scaleX:   0,
@@ -121,45 +134,15 @@
       const pct = 100 / Math.min( slots, total );
       $stepBtns.css('width', pct + '%');
 
-      // Track: ogni segmento ha stessa larghezza proporzionale dei btn
-      // Il track totale è largo quanto la row degli step
       if ( overflow ) {
         const trackTotalPct = ( total / slots ) * 100;
         $root.find('.th-track').css('width', trackTotalPct + '%');
         $segments.css('flex', 'none').css('width', ( 100 / total ) + '%');
       } else {
         $root.find('.th-track').css('width', '100%');
-        $segments.css('flex', '1').css('width', '' );
+        $segments.css('flex', '1').css('width', '');
       }
     }
-
-    function scrollToActive () {
-      if ( !$stepsScroll[0] ) return;
-      const slots = getVisibleSlots();
-      if ( total <= slots ) {
-        viewOffset = 0;
-        gsap.set( [$stepsRow[0], $root.find('.th-track')[0]], { x: 0 } );
-        return;
-      }
-
-      const scrollW  = $stepsScroll[0].offsetWidth;
-      const btnW     = $stepBtns.eq(0)[0] ? $stepBtns.eq(0)[0].offsetWidth : scrollW / slots;
-      const btnLeft  = $stepBtns.eq(current)[0].offsetLeft;
-
-      // Se il btn attivo è fuori dalla viewport visibile, centra su di lui
-      const visStart = viewOffset;
-      const visEnd   = viewOffset + scrollW;
-      if ( btnLeft < visStart || btnLeft + btnW > visEnd ) {
-        const rowW     = btnW * total;
-        const maxShift = Math.max( 0, rowW - scrollW );
-        let target     = btnLeft - ( scrollW / 2 ) + ( btnW / 2 );
-        target = Math.max( 0, Math.min( target, maxShift ) );
-        scrollToOffset( target );
-      }
-    }
-
-    // Variabile per tenere traccia dell'offset visivo indipendente dalla slide attiva
-    
 
     function scrollToOffset ( offset ) {
       const slots    = getVisibleSlots();
@@ -185,6 +168,30 @@
         duration: 0.45,
         ease:     'power2.inOut',
       });
+    }
+
+    function scrollToActive () {
+      if ( !$stepsScroll[0] ) return;
+      const slots = getVisibleSlots();
+      if ( total <= slots ) {
+        viewOffset = 0;
+        gsap.set( [$stepsRow[0], $root.find('.th-track')[0]], { x: 0 } );
+        return;
+      }
+
+      const scrollW = $stepsScroll[0].offsetWidth;
+      const btnW    = $stepBtns.eq(0)[0] ? $stepBtns.eq(0)[0].offsetWidth : scrollW / slots;
+      const btnLeft = $stepBtns.eq(current)[0].offsetLeft;
+
+      const visStart = viewOffset;
+      const visEnd   = viewOffset + scrollW;
+      if ( btnLeft < visStart || btnLeft + btnW > visEnd ) {
+        const rowW     = btnW * total;
+        const maxShift = Math.max( 0, rowW - scrollW );
+        let target     = btnLeft - ( scrollW / 2 ) + ( btnW / 2 );
+        target = Math.max( 0, Math.min( target, maxShift ) );
+        scrollToOffset( target );
+      }
     }
 
     $arrowPrev.on('click', function () {
@@ -373,6 +380,7 @@
     function stopAuto () {
       clearTimeout( autoTimer );
       autoTimer = null;
+      if ( progressTw ) { progressTw.kill(); progressTw = null; }
     }
 
     function scheduleNext () {
@@ -389,7 +397,7 @@
     function startAuto () {
       if ( !doAuto || total <= 1 ) return;
       stopAuto();
-      fillSegment( current, 300, 'power2.out' );
+      fillSegmentFull( current, 300, 'power2.out' );
       autoTimer = setTimeout( function () {
         const next = ( current + 1 ) % total;
         transitionSegments( current, next, duration * 1000 );
@@ -403,9 +411,32 @@
     function manualGoTo (idx) {
       if ( idx === current ) return;
       stopAuto();
-      transitionSegments( current, idx, duration * 1000 );
+
+      // Reset istantaneo tutte le barre
+      $segments.find('.th-track-segment__fill').each(function () {
+        gsap.set( this, { scaleX: 0, transformOrigin: 'left center', width: '100%' } );
+      });
+
+      // Reset istantaneo tutti i dot e label
+      $stepBtns.each(function () {
+        $(this).removeClass('is-active').attr('tabindex', '-1');
+        gsap.set( $(this).find('.th-step-dot__fill')[0],   { scaleX: 0, transformOrigin: 'left center' } );
+        gsap.set( $(this).find('.th-step-label__fill')[0], { clipPath: 'inset(0 100% 0 0)' } );
+      });
+
       goTo( idx, function () {
-        if ( doAuto ) scheduleNext();
+        if ( doAuto ) {
+          // Illumina solo la barra dello step cliccato
+          fillSegment( current, 300, 'power2.out' );
+          autoTimer = setTimeout( function () {
+            const next = ( current + 1 ) % total;
+            // transitionSegments parte da scaleX:1 (fillSegment ha già riempito la barra)
+            transitionSegments( current, next, duration * 1000 );
+            goTo( next, function () {
+              scheduleNext();
+            });
+          }, autoDelay );
+        }
       });
     }
 
